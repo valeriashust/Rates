@@ -44,6 +44,7 @@ const styles = StyleSheet.create({
         color: 'black',
     },
 });
+
 function urlForQueryAndPage(key, value, id) {
     const data = {
         Periodicity: 0,
@@ -81,38 +82,43 @@ export default class SearchPage extends Component<{}> {
 
         this.setState({isLoading: true});
         console.log(queryFrom);
+        console.log(queryTo);
         fetch(queryFrom)
             .then(response => response.json())
             .then((responseJson) => {
+                console.log(responseJson);
+                let firstResult = Number(this.state.searchString) / responseJson.Cur_Scale * responseJson.Cur_OfficialRate;
                 this.setState({
-                    firstRes: Number(this.state.searchString) / responseJson.Cur_Scale * responseJson.Cur_OfficialRate,
+                    firstRes: firstResult,
                 })
-            })
-            /*.catch(error =>
-                this.setState({
-                    isLoading: false,
-                    message: 'Что-то пошло не так ' + error
-                }));*/
-        console.log(queryTo);
-        fetch(queryTo)
-            .then(response => response.json())
-            .then((responseJson) => {
-                this.setState({
-                    isLoading: false,
-                    message: '',
-                    result: this.state.firstRes * responseJson.Cur_Scale / responseJson.Cur_OfficialRate,
-                })
-                    /*.catch(error =>
+            }).catch(error =>
+            this.setState({
+                isLoading: false,
+                message: 'Что-то пошло не так ' + error
+            }))
+            .then(() => {
+                fetch(queryTo)
+                    .then(response => response.json())
+                    .then((responseJson) => {
+                        console.log(responseJson);
+                        let secondResult = this.state.firstRes * responseJson.Cur_Scale / responseJson.Cur_OfficialRate;
+                        this.setState({
+                            isLoading: false,
+                            message: '',
+                            result: secondResult,
+                        });
+                        this.props.navigation.navigate(
+                            'Results', {
+                                dataSource: `${this.state.searchString} ${this.state.currIDFrom.toUpperCase()} = ${this.state.result} ${this.state.currIDTo.toUpperCase()}`,
+                                date: this.state.date
+                            });
+                    })
+                    .catch(error =>
                         this.setState({
                             isLoading: false,
                             message: 'Что-то пошло не так ' + error
-                        }));*/
-                this.props.navigation.navigate(
-                    'Results', {
-                        dataSource: `${this.state.searchString} ${this.state.currIDFrom.toUpperCase()} = ${this.state.result} ${this.state.currIDTo.toUpperCase()}`,
-                        date: this.state.date
-                    });
-            })
+                        }));
+            });
     };
 
     _onSearchPressed = () => {
