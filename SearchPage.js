@@ -210,7 +210,7 @@ export default class SearchPage extends Component<{}> {
                     <Picker
                         selectedValue={this.state.currIDTo}
                         style={{height: 50, width: 250}}
-                        onValueChange={(itemValue, itemIndex) => this.setState({currIDTo: itemValue})}>
+                        onValueChange={(itemValue) => this.setState({currIDTo: itemValue})}>
                         <Picker.Item label="Австралийский доллар" value="aud"/>
                         <Picker.Item label="Болгарский лев" value="bgn"/>
                         <Picker.Item label="Гривна" value="uah"/>
