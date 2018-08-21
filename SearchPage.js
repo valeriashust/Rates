@@ -5,135 +5,192 @@ import {
     View,
     Button,
     ActivityIndicator,
-    Picker,
     TextInput
 } from 'react-native';
 import DatePicker from 'react-native-datepicker';
+import PickerOfCurrancy from './PickerOfCurrancy';
 
-const styles = StyleSheet.create({
-    description: {
-        marginBottom: 10,
-        fontSize: 18,
-        textAlign: 'center',
-        color: '#656565'
+const styles = StyleSheet.create(
+    {
+        description: {
+            marginBottom: 10,
+            fontSize: 18,
+            textAlign: 'center',
+            color: '#656565',
+        },
+
+        container: {
+            padding: 30,
+            marginTop: 5,
+            alignItems: 'flex-start',
+        },
+
+        button: {
+            marginTop: 15,
+        },
+
+        flowRight: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'stretch',
+        },
+
+        inputStyle: {
+            height: 36,
+            padding: 4,
+            marginRight: 5,
+            flexGrow: 1,
+            fontSize: 18,
+            borderWidth: 1,
+            borderColor: 'black',
+            borderRadius: 8,
+            color: 'black',
+        },
+
+        datePickerStyle: {
+            width: 200,
+            marginBottom: 10,
+            flexGrow: 1,
+        },
+
+        dateIconStyle: {
+            position: 'absolute',
+            left: 0,
+            top: 4,
+            marginLeft: 0,
+        },
+
+        dateInputStyle: {
+            marginLeft: 36,
+        },
+
+        pickerStyle: {
+            height: 50,
+            width: 250,
+        }
+
     },
+);
+const spinner = <ActivityIndicator size="small" color="#00ff00"/>;
 
-    container: {
-        padding: 30,
-        marginTop: 5,
-        alignItems: 'flex-start'
-    },
-
-    button: {
-        marginTop: 15,
-    },
-    flowRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'stretch',
-    },
-    searchInput: {
-        height: 36,
-        padding: 4,
-        marginRight: 5,
-        flexGrow: 1,
-        fontSize: 18,
-        borderWidth: 1,
-        borderColor: 'black',
-        borderRadius: 8,
-        color: 'black',
-    },
-});
-
-function urlForQueryAndPage(key, value, id) {
-    const data = {
-        Periodicity: 0,
-        ParamMode: 2,
-    };
-    data[key] = value;
-
-    const querystring = Object.keys(data)
-        .map(key => key + '=' + encodeURIComponent(data[key]))
-        .join('&');
-
-    return 'http://www.nbrb.by/API/ExRates/Rates/' + id + '?' + querystring;
-}
-
-export default class SearchPage extends Component<{}> {
+class SearchPage extends Component {
     static navigationOptions = {title: 'Конвертер валют'};
 
     constructor(props) {
         super(props);
-        let d = new Date();
-        let s = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        let date = new Date();
+        let formattedDate = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
         this.state = {
             isLoading: false,
-            message: '',
-            date: s,
+            errorMessage: '',
+            date: formattedDate,
             currIDFrom: 'aud',
             currIDTo: 'aud',
-            searchString: '',
-            firstRes: 0,
-            result: 0,
+            inputString: '',
+            firstResult: 0,
+            finalResult: 0,
         };
-    }
+    };
 
-    _executeQuery = (queryFrom, queryTo) => {
+    urlForRateQuery = (id) => {
+        const data = {
+            Periodicity: 0,
+            ParamMode: 2,
+            onDate: this.state.date,
+        };
+        const queryString = Object.keys(data)
+            .map(key => key + '=' + encodeURIComponent(data[key]))
+            .join('&');
+
+        return 'http://www.nbrb.by/API/ExRates/Rates/' + id + '?' + queryString;
+    };
+
+    executeQueries = (firstQuery, secondQuery) => {
 
         this.setState({isLoading: true});
-        console.log(queryFrom);
-        console.log(queryTo);
-        fetch(queryFrom)
+        fetch(firstQuery)
             .then(response => response.json())
             .then((responseJson) => {
-                console.log(responseJson);
-                let firstResult = Number(this.state.searchString) / responseJson.Cur_Scale * responseJson.Cur_OfficialRate;
-                this.setState({
-                    firstRes: firstResult,
-                })
-            }).catch(error =>
-            this.setState({
-                isLoading: false,
-                message: 'Что-то пошло не так ' + error
-            }))
+                    let scale = responseJson.Cur_Scale;
+                    let rate = responseJson.Cur_OfficialRate;
+                    let inputtedValue = Number(this.state.inputString);
+                    let firstResult = inputtedValue / scale * rate;
+                    this.setState(
+                        {
+                            firstResult: firstResult,
+                        }
+                    );
+                }
+            )
+            .catch(error =>
+                this.setState(
+                    {
+                        isLoading: false,
+                        errorMessage: 'Что-то пошло не так ' + error,
+                    }
+                )
+            )
             .then(() => {
-                fetch(queryTo)
-                    .then(response => response.json())
-                    .then((responseJson) => {
-                        console.log(responseJson);
-                        let secondResult = this.state.firstRes * responseJson.Cur_Scale / responseJson.Cur_OfficialRate;
-                        this.setState({
-                            isLoading: false,
-                            message: '',
-                            result: secondResult,
-                        });
-                        this.props.navigation.navigate(
-                            'Results', {
-                                dataSource: `${this.state.searchString} ${this.state.currIDFrom.toUpperCase()} = ${this.state.result} ${this.state.currIDTo.toUpperCase()}`,
-                                date: this.state.date
-                            });
-                    })
-                    .catch(error =>
-                        this.setState({
-                            isLoading: false,
-                            message: 'Что-то пошло не так ' + error
-                        }));
-            });
+                    fetch(secondQuery)
+                        .then(response => response.json())
+                        .then((responseJson) => {
+                                let scale = responseJson.Cur_Scale;
+                                let rate = responseJson.Cur_OfficialRate;
+                                let secondResult = this.state.firstResult * scale / rate;
+                                this.setState(
+                                    {
+                                        isLoading: false,
+                                        errorMessage: '',
+                                        finalResult: secondResult,
+                                    }
+                                );
+                                let currIDFrom = this.state.currIDFrom.toUpperCase();
+                                let currIDTo = this.state.currIDTo.toUpperCase();
+                                let inputtedValue = this.state.inputString;
+                                let result = this.state.finalResult;
+                                console.log(result);
+                                let resultString = `${inputtedValue} ${currIDFrom} = ${result} ${currIDTo}`;
+                                this.props.navigation.navigate(
+                                    'Results',
+                                    {
+                                        dataSource: resultString,
+                                    }
+                                );
+                            }
+                        )
+                        .catch(error =>
+                            this.setState(
+                                {
+                                    isLoading: false,
+                                    errorMessage: 'Что-то пошло не так ' + error,
+                                }
+                            )
+                        );
+                }
+            );
     };
 
-    _onSearchPressed = () => {
-        const query1 = urlForQueryAndPage('onDate', this.state.date, this.state.currIDFrom);
-        const query2 = urlForQueryAndPage('onDate', this.state.date, this.state.currIDTo);
-        this._executeQuery(query1, query2);
+    onButtonPressed = () => {
+        const urlForFirstQuery = this.urlForRateQuery(this.state.currIDFrom);
+        const urlForSecondQuery = this.urlForRateQuery(this.state.currIDTo);
+
+        this.executeQueries(urlForFirstQuery, urlForSecondQuery);
     };
 
-    _onSearchTextChanged = (event) => {
-        this.setState({searchString: event.nativeEvent.text});
+    onTextInputChange = (text) => {
+        this.setState({inputString: text});
+    };
+
+    onFirstPickerValueChange = (pickedValue) => {
+        this.setState({currIDFrom: pickedValue});
+    };
+
+    onSecondPickerValueChange = (pickedValue) => {
+        this.setState({currIDTo: pickedValue});
     };
 
     render() {
-        const spinner = this.state.isLoading ?
-            <ActivityIndicator size="small" color="#00ff00"/> : null;
+        const showSpinner = this.state.isLoading ? spinner : null;
 
         return (
             <View style={styles.container}>
@@ -142,7 +199,7 @@ export default class SearchPage extends Component<{}> {
                 </Text>
                 <View style={styles.flowRight}>
                     <DatePicker
-                        style={{width: 200, marginBottom: 10, flexGrow: 1}}
+                        style={styles.datePickerStyle}
                         date={this.state.date}
                         mode="date"
                         placeholder="select date"
@@ -151,116 +208,54 @@ export default class SearchPage extends Component<{}> {
                         maxDate="2050-06-01"
                         confirmBtnText="Confirm"
                         cancelBtnText="Cancel"
-                        customStyles={{
-                            dateIcon: {
-                                position: 'absolute',
-                                left: 0,
-                                top: 4,
-                                marginLeft: 0,
-                            },
-                            dateInput: {
-                                marginLeft: 36
+                        customStyles={
+                            {
+                                dateIcon: styles.dateIconStyle,
+                                dateInput: styles.dateInputStyle,
                             }
-                        }}
-                        onDateChange={(date) => {
-                            this.setState({date: date})
+                        }
+                        onDateChange={(pickedDate) => {
+                            this.setState({date: pickedDate})
                         }}
                     />
                 </View>
                 <Text style={styles.description}>
                     Из:
                 </Text>
-                <View>
-                    <Picker
-                        selectedValue={this.state.currIDFrom}
-                        style={{height: 50, width: 250}}
-                        onValueChange={(itemValue) => this.setState({currIDFrom: itemValue})}>
-                        <Picker.Item label="Австралийский доллар" value="aud"/>
-                        <Picker.Item label="Болгарский лев" value="bgn"/>
-                        <Picker.Item label="Гривна" value="uah"/>
-                        <Picker.Item label="Датская крона" value="dkk"/>
-                        <Picker.Item label="Доллар США" value="usd"/>
-                        <Picker.Item label="Евро" value="eur"/>
-                        <Picker.Item label="Злотый" value="pln"/>
-                        <Picker.Item label="Иранский риал" value="irr"/>
-                        <Picker.Item label="Исландская крона" value="isk"/>
-                        <Picker.Item label="Йена" value="jpy"/>
-                        <Picker.Item label="Канадский доллар" value="cad"/>
-                        <Picker.Item label="Китайский юань" value="cny"/>
-                        <Picker.Item label="Кувейтский динар" value="kwd"/>
-                        <Picker.Item label="Молдавский лей" value="mdl"/>
-                        <Picker.Item label="Новозеландский доллар" value="nzd"/>
-                        <Picker.Item label="Норвежская крона" value="nok"/>
-                        <Picker.Item label="Российский рубль" value="rub"/>
-                        <Picker.Item label="СДР (Специальные права заимствования)" value="xdr"/>
-                        <Picker.Item label="Сингапурcкий доллар" value="sgd"/>
-                        <Picker.Item label="Сом" value="kgs"/>
-                        <Picker.Item label="Тенге" value="kzt"/>
-                        <Picker.Item label="Турецкая лира" value="try"/>
-                        <Picker.Item label="Фунт стерлингов" value="gbp"/>
-                        <Picker.Item label="Чешская крона" value="czk"/>
-                        <Picker.Item label="Шведская крона" value="sek"/>
-                        <Picker.Item label="Швейцарский франк" value="chf"/>
-                    </Picker>
-                </View>
+                <PickerOfCurrancy
+                    selectedValue={this.state.currIDFrom}
+                    onValueChange={this.onFirstPickerValueChange}
+                />
                 <Text style={styles.description}>
                     В:
                 </Text>
-                <View>
-                    <Picker
-                        selectedValue={this.state.currIDTo}
-                        style={{height: 50, width: 250}}
-                        onValueChange={(itemValue) => this.setState({currIDTo: itemValue})}>
-                        <Picker.Item label="Австралийский доллар" value="aud"/>
-                        <Picker.Item label="Болгарский лев" value="bgn"/>
-                        <Picker.Item label="Гривна" value="uah"/>
-                        <Picker.Item label="Датская крона" value="dkk"/>
-                        <Picker.Item label="Доллар США" value="usd"/>
-                        <Picker.Item label="Евро" value="eur"/>
-                        <Picker.Item label="Злотый" value="pln"/>
-                        <Picker.Item label="Иранский риал" value="irr"/>
-                        <Picker.Item label="Исландская крона" value="isk"/>
-                        <Picker.Item label="Йена" value="jpy"/>
-                        <Picker.Item label="Канадский доллар" value="cad"/>
-                        <Picker.Item label="Китайский юань" value="cny"/>
-                        <Picker.Item label="Кувейтский динар" value="kwd"/>
-                        <Picker.Item label="Молдавский лей" value="mdl"/>
-                        <Picker.Item label="Новозеландский доллар" value="nzd"/>
-                        <Picker.Item label="Норвежская крона" value="nok"/>
-                        <Picker.Item label="Российский рубль" value="rub"/>
-                        <Picker.Item label="СДР (Специальные права заимствования)" value="xdr"/>
-                        <Picker.Item label="Сингапурcкий доллар" value="sgd"/>
-                        <Picker.Item label="Сом" value="kgs"/>
-                        <Picker.Item label="Тенге" value="kzt"/>
-                        <Picker.Item label="Турецкая лира" value="try"/>
-                        <Picker.Item label="Фунт стерлингов" value="gbp"/>
-                        <Picker.Item label="Чешская крона" value="czk"/>
-                        <Picker.Item label="Шведская крона" value="sek"/>
-                        <Picker.Item label="Швейцарский франк" value="chf"/>
-                    </Picker>
-                </View>
+                <PickerOfCurrancy
+                    selectedValue={this.state.currIDTo}
+                    onValueChange={this.onSecondPickerValueChange}
+                />
                 <Text style={styles.description}>
                     Количество единиц:
                 </Text>
                 <View style={styles.flowRight}>
                     <TextInput
                         underlineColorAndroid={'transparent'}
-                        style={styles.searchInput}
-                        value={this.state.searchString}
-                        onChange={this._onSearchTextChanged}/>
+                        style={styles.inputStyle}
+                        value={this.state.inputString}
+                        onChangeText={this.onTextInputChange}
+                    />
                 </View>
                 <View style={styles.button}>
                     <Button
-                        onPress={this._onSearchPressed}
+                        onPress={this.onButtonPressed}
                         color='#9900CC'
                         title='Конвертировать'
                     />
                 </View>
-                {spinner}
-                <Text style={styles.description}>{this.state.message}</Text>
+                {showSpinner}
+                <Text style={styles.description}>{this.state.errorMessage}</Text>
             </View>
         );
-    }
+    };
 }
 
-
+export default SearchPage;
